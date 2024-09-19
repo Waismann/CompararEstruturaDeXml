@@ -115,7 +115,7 @@
             txtsenha.PasswordChar = '*';
             txtsenha.Size = new Size(242, 31);
             txtsenha.TabIndex = 8;
-            txtsenha.Text = "W@1sm4nn";
+            txtsenha.Text = "123456789";
             // 
             // label3
             // 
