@@ -24,6 +24,8 @@ namespace XMLServico
         string strnocodigoibge;
         string strnoufprestadorservico;
         string strnocodigoibgeorgaoprestadorservico;
+        List<string> lstEncontrarMunicipio;
+        string strXmlEncontrarMunicipio;
 
         public frmXML()
         {
@@ -49,6 +51,7 @@ namespace XMLServico
                 if (ValidarArquivoXML(caminhoArquivoSelecionado))
                 {
                     string xmlSelecionado = File.ReadAllText(caminhoArquivoSelecionado);
+                    
 
                     strCabecalhoXmlSelecionado = AlteraXmlParaComparacao.LerArquivoTexto(caminhoArquivoSelecionado);
 
@@ -58,6 +61,7 @@ namespace XMLServico
                         alteraXmlParaComparacao = new AlteraXmlParaComparacao();
                     }
                     ControlePrincipal.SelectedTab = ControlePrincipal.TabPages["Control2"];
+                    strXmlEncontrarMunicipio = caminhoArquivoSelecionado;
                     EncontraNoCodigoIbge(xmlSelecionado);
                 }
                 else
@@ -156,6 +160,8 @@ namespace XMLServico
                 documentoXmlSelecionado.LoadXml(xmlSelecionado);
 
                 List<string> nosXmlSelecionado = ObterTodosOsCaminhosDosNos(documentoXmlSelecionado.DocumentElement, "");
+                lstEncontrarMunicipio = new List<string>();
+                lstEncontrarMunicipio = nosXmlSelecionado;
 
                 if (nosXmlSelecionado.Count == 0)
                 {
@@ -290,7 +296,7 @@ namespace XMLServico
             return resultados;
         }
 
-        private void CompararEstrutura(List<Dom_modeloserviconfse> resultados, string xmlSelecionado)
+        private void CompararEstrutura(List<Dom_modeloserviconfse> resultados, string pxmlSelecionado)
         {
             try
             {
@@ -298,24 +304,24 @@ namespace XMLServico
 
                 foreach (var resultado in resultados)
                 {
-
+                    
                     string xmlDriver = resultado.Xml;
                     string idModeloServico = resultado.IdModeloServico;
 
                     XmlDocument xmlDriverDoc = new XmlDocument();
                     xmlDriverDoc.LoadXml(xmlDriver);
-                    string strSeparadorNota = RetornarSeparador(xmlDriverDoc, "SeparadorNotas");
-                    string xmlSelecionadoCopia = xmlSelecionado;
+                    string strSeparadorNota = RetornarSeparador(xmlDriverDoc, "SeparadorNotas").Replace("@", "");
+                    string xmlSelecionadoCopia = pxmlSelecionado;
                     string xmlDriverCopia = xmlDriver;
 
-                    xmlDriverCopia = alteraXmlParaComparacao.RetornarXMLAlterado(xmlDriverCopia, strCabecalhoXmlSelecionado, strSeparadorNota, true, resultado.IdModeloServico);
+                    xmlDriverCopia = alteraXmlParaComparacao.RetornarXMLAlterado(xmlDriverCopia, xmlDriverCopia, strSeparadorNota, true, resultado.IdModeloServico);
                     xmlSelecionadoCopia = alteraXmlParaComparacao.RetornarXMLAlterado(xmlSelecionadoCopia, strCabecalhoXmlSelecionado, strSeparadorNota, false, resultado.IdModeloServico);
 
                     int compatibilidade = 0;
                     try
                     {
 
-                        compatibilidade = CompararCaminhosXml(xmlSelecionadoCopia, xmlDriver);
+                        compatibilidade = CompararCaminhosXml(xmlSelecionadoCopia, xmlDriverCopia);
                     }
                     catch (Exception ex)
                     {
@@ -337,7 +343,7 @@ namespace XMLServico
         }
 
 
-        private int CompararCaminhosXml(string xmlSelecionado, string xmlDriver)
+        private int CompararCaminhosXml(string pxmlSelecionado, string pxmlDriver)
         {
             XmlDocument documentoXmlSelecionado = new XmlDocument();
             XmlDocument documentoXmlDriver = new XmlDocument();
@@ -345,21 +351,21 @@ namespace XMLServico
 
             try
             {
-                documentoXmlSelecionado.LoadXml(xmlSelecionado);
+                documentoXmlSelecionado.LoadXml(pxmlSelecionado);
             }
             catch (XmlException ex)
             {
-                MessageBox.Show($"Erro ao carregar o XML selecionado: {ex.Message}");
+                MessageBox.Show($"Erro em CompararCaminhosXml com o XML selecionado: {ex.Message}");
                 return compatibilidade;
             }
 
             try
             {
-                documentoXmlDriver.LoadXml(xmlDriver);
+                documentoXmlDriver.LoadXml(pxmlDriver);
             }
             catch (XmlException ex)
             {
-                MessageBox.Show($"Erro ao carregar o XML do driver: {ex.Message}");
+                MessageBox.Show($"Erro em CompararCaminhosXml com o XML do banco: {ex.Message}");
                 return compatibilidade;
             }
 
@@ -454,6 +460,8 @@ namespace XMLServico
                         strnocodigoibgeorgaoprestadorservico = row.Cells["NoCodigoIbgeOrgaoPrestadorServico"].Value != null ? row.Cells["NoCodigoIbgeOrgaoPrestadorServico"].Value.ToString() : "NULL";
 
                         ControlePrincipal.SelectedTab = ControlePrincipal.TabPages["Control3"];
+                        RetornaConteudoMunicipio(strnocodigoibge, lstEncontrarMunicipio);
+
                     }
                 }
             }
@@ -598,6 +606,59 @@ namespace XMLServico
             }
         }
 
+        private void RetornaConteudoMunicipio (string pNoCodigoIbge, List<String> pXmlSelecionado)
+        {
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.Load(strXmlEncontrarMunicipio);
+
+
+            string caminhoNoCodigoIbgeAlterado = RemoverDuasBarrasInvertidas(pNoCodigoIbge);
+            string resultado = ObterConteudoDoNo(caminhoNoCodigoIbgeAlterado, xmlDoc);
+            txtmunicipio.Text = resultado;  
+            btnpesquisar_Click(this, new EventArgs());  
+        }
+
+        public string ObterConteudoDoNo(string caminhoNo, XmlDocument documentoXml)
+        {
+            // Cria um NamespaceManager e adiciona os namespaces do documento XML
+            XmlNamespaceManager nsmgr = new XmlNamespaceManager(documentoXml.NameTable);
+
+            // Adiciona todos os namespaces presentes no documento
+            foreach (XmlAttribute attr in documentoXml.DocumentElement.Attributes)
+            {
+                if (attr.Prefix == "xmlns" || attr.Name == "xmlns")
+                {
+                    nsmgr.AddNamespace(attr.LocalName == "xmlns" ? string.Empty : attr.LocalName, attr.Value);
+                }
+            }
+
+            // Seleciona o nó que corresponde ao caminho fornecido usando o NamespaceManager
+            XmlNode no = documentoXml.SelectSingleNode(caminhoNo, nsmgr);
+
+            if (no != null)
+            {
+                // Retorna o valor dentro do nó
+                return no.InnerText;
+            }
+
+            // Retorna uma string vazia se não encontrar o nó
+            return string.Empty;
+        }
+
+        public string RemoverDuasBarrasInvertidas(string caminho)
+        {
+            // Verifica se a string começa com "//"
+            if (caminho.StartsWith("//"))
+            {
+                // Remove as duas primeiras barras invertidas
+                return caminho.Substring(2);
+            }
+
+            // Se não começar com "//", retorna a string original
+            return caminho;
+        }
+
+
 
         private void btnexportar_Click(object sender, EventArgs e)
         {
@@ -646,7 +707,7 @@ namespace XMLServico
                 return $@"
 USE NG_Dominio
 GO
-IF NOT EXISTS(SELECT 1 FROM .dbo.dom_modeloserviconfse where idmodeloserviconfse = {idmodeloserviconfsemunicipio})		
+IF NOT EXISTS(SELECT 1 FROM .dbo.dom_modeloserviconfse where idmodeloserviconfse = {idmodeloservico})		
 BEGIN
     SET DATEFORMAT YMD
     INSERT INTO .dbo.dom_modeloserviconfse (
